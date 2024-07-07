@@ -50,22 +50,19 @@ export default class misscap extends Plugin {
 			: [];
 
 		for (const word of capitalizedWords) {
-			// console.log(`Word: ${word[0]}, Index: ${word.index}`);
-			// console.log(fileContent ? fileContent[word.index] : "No content");
 			if (
 				fileContent[word.index - 1] === "\t" ||
 				fileContent[word.index - 2] === "." ||
 				fileContent[word.index - 1] === "!" ||
 				fileContent[word.index - 1] === "?" ||
 				fileContent[word.index - 1] === '"' ||
-				fileContent[word.index - 1] === "'"
+				fileContent[word.index - 1] === "'" ||
+				word[0] === word[0].toUpperCase()
 			) {
-				// console.log("Tab before");
 				continue;
 			}
 			matches.push(word);
 		}
-
 		console.log(matches);
 	}
 }
