@@ -1,3 +1,4 @@
+import { match } from "assert";
 import { Plugin } from "obsidian";
 
 export default class misscap extends Plugin {
@@ -5,12 +6,12 @@ export default class misscap extends Plugin {
 
 	onload() {
 		this.statusBarElement = this.addStatusBarItem().createEl("span");
-
 		this.readActiveFileAndUpdateLineCount();
 
 		this.app.workspace.on("editor-change", (editor) => {
 			const content = editor.getDoc().getValue();
 			this.updateLineCount(content);
+			this.findCapWords(content);
 		});
 
 		this.app.workspace.on("active-leaf-change", () => {
@@ -27,8 +28,10 @@ export default class misscap extends Plugin {
 		if (file) {
 			const content = await this.app.vault.read(file);
 			this.updateLineCount(content);
+			this.findCapWords(content);
 		} else {
 			this.updateLineCount(undefined);
+			this.findCapWords(undefined);
 		}
 	}
 
@@ -36,5 +39,33 @@ export default class misscap extends Plugin {
 		const count = fileContent ? fileContent.split(/\r\n|\r|\n/).length : 0;
 		const linesWord = count === 1 ? "line" : "lines";
 		this.statusBarElement.textContent = `${count} ${linesWord}`;
+	}
+
+	private findCapWords(fileContent?: string) {
+		if (!fileContent) return;
+
+		let matches = [];
+		let capitalizedWords = fileContent
+			? [...fileContent.matchAll(/\b[A-Z][a-z]*\b/g)]
+			: [];
+
+		for (const word of capitalizedWords) {
+			// console.log(`Word: ${word[0]}, Index: ${word.index}`);
+			// console.log(fileContent ? fileContent[word.index] : "No content");
+			if (
+				fileContent[word.index - 1] === "\t" ||
+				fileContent[word.index - 2] === "." ||
+				fileContent[word.index - 1] === "!" ||
+				fileContent[word.index - 1] === "?" ||
+				fileContent[word.index - 1] === '"' ||
+				fileContent[word.index - 1] === "'"
+			) {
+				// console.log("Tab before");
+				continue;
+			}
+			matches.push(word);
+		}
+
+		console.log(matches);
 	}
 }
