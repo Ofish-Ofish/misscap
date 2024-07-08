@@ -1,5 +1,7 @@
 import { match } from "assert";
 import { Plugin } from "obsidian";
+import * as fs from "fs";
+import * as path from "path";
 
 export default class misscap extends Plugin {
 	statusBarElement: HTMLSpanElement;
@@ -48,7 +50,8 @@ export default class misscap extends Plugin {
 		let capitalizedWords = fileContent
 			? [...fileContent.matchAll(/\b[A-Z][a-z]*\b/g)]
 			: [];
-
+		console.log(path.resolve(__dirname, "properNouns.txt"));
+		console.log(fs.readFileSync("../properNouns.txt"), "utf8");
 		for (const word of capitalizedWords) {
 			if (
 				fileContent[word.index - 1] === "\t" ||
