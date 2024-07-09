@@ -1,5 +1,5 @@
 import { match } from "assert";
-import { Editor, Plugin } from "obsidian";
+import { Editor, Plugin, MarkdownView, Notice, Modal } from "obsidian";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -30,19 +30,13 @@ export default class misscap extends Plugin {
 		const file = this.app.workspace.getActiveFile();
 		if (file) {
 			const content = await this.app.vault.read(file);
-			if (this.app.workspace.activeEditor()) {
-				editor = this.app.workspace.activeEditor();
-			}
-			this.findCapWords(content);
+			const activeView =
+				this.app.workspace.getActiveViewOfType(MarkdownView);
+			const editor = activeView ? activeView.editor : null;
+			this.findCapWords(content, editor);
 		} else {
-			this.findCapWords(undefined);
+			this.findCapWords(undefined, undefined);
 		}
-	}
-
-	private updateLineCount(fileContent?: string) {
-		const count = fileContent ? fileContent.split(/\r\n|\r|\n/).length : 0;
-		const linesWord = count === 1 ? "line" : "lines";
-		this.statusBarElement.textContent = `${count} ${linesWord}`;
 	}
 
 	private findCapWords(fileContent?: string, editor: any) {
@@ -72,6 +66,15 @@ export default class misscap extends Plugin {
 		if (matches.length < 1) {
 			return;
 		}
+
+		for (const match of matches) {
+			console.log(match[0]);
+			// const newContent = fileContent.replace(
+			// 	match[0],
+			// 	`<span class="misscap">${match[0]}</span>`
+			// );
+			// editor.getDoc().setValue(newContent);
+		}
 	}
 
 	private async loadProperNouns(): Promise<Set<string>> {
@@ -85,6 +88,4 @@ export default class misscap extends Plugin {
 		const nouns = new Set(data.split(/\r?\n/));
 		return nouns;
 	}
-
-	private;
 }
