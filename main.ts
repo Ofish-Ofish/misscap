@@ -1,6 +1,7 @@
 import { Editor, Plugin, MarkdownView, Notice, Modal } from "obsidian";
 import * as fs from "fs";
 import * as path from "path";
+import { log } from "console";
 
 export default class Misscap extends Plugin {
 	statusBarElement: HTMLSpanElement;
@@ -11,6 +12,32 @@ export default class Misscap extends Plugin {
 		this.statusBarElement = this.addStatusBarItem().createEl("span");
 		this.PROPERNOUNS = await this.loadProperNouns();
 		this.readActiveFileAndFindCapWords();
+
+		this.addCommand({
+			id: "add-to-Library",
+			name: "add to Library",
+			editorCallback: (editor: Editor) => {
+				let selection = editor.getSelection();
+				if (selection.length) {
+					const tempDiv = document.createElement("div");
+					tempDiv.innerHTML = selection;
+					selection = tempDiv.textContent || tempDiv.innerText || "";
+					console.log(selection);
+				} else {
+					let selection2 = window.getSelection();
+					let selectedText = "";
+					if (selection2 && selection2.rangeCount > 0) {
+						const range = selection2.getRangeAt(0);
+						const container = document.createElement("div");
+						container.appendChild(range.cloneContents());
+						selectedText =
+							container.textContent || container.innerText || "";
+						selection2.removeAllRanges();
+						console.log(selectedText);
+					}
+				}
+			},
+		});
 
 		this.app.workspace.on("editor-change", (editor) => {
 			clearTimeout(this.debounceTimer);
