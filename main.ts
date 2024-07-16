@@ -1,4 +1,11 @@
-import { Editor, Plugin, MarkdownView, Notice, Modal } from "obsidian";
+import {
+	Editor,
+	Plugin,
+	MarkdownView,
+	Notice,
+	Modal,
+	normalizePath,
+} from "obsidian";
 import * as fs from "fs";
 import * as path from "path";
 import { log } from "console";
@@ -6,11 +13,15 @@ import { log } from "console";
 export default class Misscap extends Plugin {
 	statusBarElement: HTMLSpanElement;
 	PROPERNOUNS: Set<string>;
+	PERSONALPROPERNOUNS: Set<string>;
 	debounceTimer: number;
 
 	async onload() {
 		this.statusBarElement = this.addStatusBarItem().createEl("span");
-		this.PROPERNOUNS = await this.loadProperNouns();
+		this.PROPERNOUNS = await this.readFromNounFile("properNouns.txt");
+		this.PERSONALPROPERNOUNS = await this.readFromNounFile(
+			"personalWordBank.txt"
+		);
 		this.readActiveFileAndFindCapWords();
 
 		this.addCommand({
@@ -23,6 +34,7 @@ export default class Misscap extends Plugin {
 					tempDiv.innerHTML = selection;
 					selection = tempDiv.textContent || tempDiv.innerText || "";
 					console.log(selection);
+					this.writeToPersonalWordBank(selection);
 				} else {
 					let selection2 = window.getSelection();
 					let selectedText = "";
@@ -34,6 +46,7 @@ export default class Misscap extends Plugin {
 							container.textContent || container.innerText || "";
 						selection2.removeAllRanges();
 						console.log(selectedText);
+						this.writeToPersonalWordBank(selectedText);
 					}
 				}
 			},
@@ -111,7 +124,8 @@ export default class Misscap extends Plugin {
 				fileContent[wordAndInfo.index - 1] === "”" ||
 				fileContent[wordAndInfo.index - 1] === undefined ||
 				wordAndInfo[0] === wordAndInfo[0].toUpperCase() ||
-				this.PROPERNOUNS.has(wordAndInfo[0])
+				this.PROPERNOUNS.has(wordAndInfo[0]) ||
+				this.PERSONALPROPERNOUNS.has(wordAndInfo[0])
 			) {
 				continue;
 			}
@@ -138,15 +152,33 @@ export default class Misscap extends Plugin {
 		editor.getDoc().setValue(newContent);
 	}
 
-	private async loadProperNouns(): Promise<Set<string>> {
+	private async readFromNounFile(file: string): Promise<Set<string>> {
 		const filePath = path.join(
 			this.app.vault.configDir,
 			"plugins",
 			"misscap",
-			"properNouns.txt"
+			`${file}`
 		);
 		const data = await this.app.vault.adapter.read(filePath);
 		const nouns = new Set(data.split(/\r?\n/));
 		return nouns;
+	}
+
+	private async writeToPersonalWordBank(word: string) {
+		const filePath = path.join(
+			this.app.vault.configDir,
+			"plugins",
+			"misscap",
+			"personalWordBank.txt"
+		);
+		const ProperNouns = await this.readFromNounFile("personalWordBank.txt");
+		if (ProperNouns.has(word)) {
+			new Notice("This word is already in the proper nouns list");
+			return;
+		}
+		this.app.vault.adapter.append(filePath, `\n${word}`);
+		this.PERSONALPROPERNOUNS = await this.readFromNounFile(
+			"personalWordBank.txt"
+		);
 	}
 }
