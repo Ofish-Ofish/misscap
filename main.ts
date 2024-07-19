@@ -15,8 +15,9 @@ export default class Misscap extends Plugin {
 	PROPERNOUNS: Set<string>;
 	PERSONALPROPERNOUNS: Set<string>;
 	debounceTimer: number;
-
+	isProgrammaticChange: boolean;
 	async onload() {
+		this.isProgrammaticChange = false;
 		this.statusBarElement = this.addStatusBarItem().createEl("span");
 		this.PROPERNOUNS = await this.readFromNounFile("properNouns.txt");
 		this.PERSONALPROPERNOUNS = await this.readFromNounFile(
@@ -53,6 +54,7 @@ export default class Misscap extends Plugin {
 		});
 
 		this.app.workspace.on("editor-change", (editor) => {
+			if (this.isProgrammaticChange) return;
 			clearTimeout(this.debounceTimer);
 			this.debounceTimer = window.setTimeout(() => {
 				const content = editor.getDoc().getValue();
@@ -84,7 +86,10 @@ export default class Misscap extends Plugin {
 
 	private async findCapWords(fileContent?: string, editor?: any) {
 		if (!fileContent) return;
-
+		this.isProgrammaticChange = true;
+		const Cleancontent = this.removeAllSpans(fileContent);
+		editor.getDoc().setValue(Cleancontent);
+		this.isProgrammaticChange = false;
 		let matches: Array<any> = [];
 		let capitalizedWords = fileContent
 			? [
@@ -96,8 +101,6 @@ export default class Misscap extends Plugin {
 		for (const wordAndInfo of capitalizedWords) {
 			const word = wordAndInfo[0];
 			const startIndex = wordAndInfo.index;
-
-			// Check if the word is already within a <span> tag
 			const spanword = fileContent.substring(
 				Math.max(0, startIndex - 22),
 				Math.min(fileContent.length, startIndex + 7)
@@ -109,28 +112,7 @@ export default class Misscap extends Plugin {
 				continue;
 			}
 
-			// if (
-			// 	fileContent[wordAndInfo.index - 1] === "\t" ||
-			// 	fileContent[wordAndInfo.index - 2] === "." ||
-			// 	fileContent[wordAndInfo.index - 3] === "." ||
-			// 	fileContent[wordAndInfo.index - 1] === "\n" ||
-			// 	fileContent[wordAndInfo.index - 2] === "!" ||
-			// 	fileContent[wordAndInfo.index - 3] === "!" ||
-			// 	fileContent[wordAndInfo.index - 2] === "?" ||
-			// 	fileContent[wordAndInfo.index - 3] === "?" ||
-			// 	fileContent[wordAndInfo.index - 1] === '"' ||
-			// 	fileContent[wordAndInfo.index - 1] === "'" ||
-			// 	fileContent[wordAndInfo.index - 1] === "#" ||
-			// 	fileContent[wordAndInfo.index - 1] === ">" ||
-			// 	fileContent[wordAndInfo.index - 1] === "“" ||
-			// 	fileContent[wordAndInfo.index - 1] === "‘" ||
-			// 	fileContent[wordAndInfo.index - 1] === "’" ||
-			// 	fileContent[wordAndInfo.index - 1] === "”" ||
-			// 	fileContent[wordAndInfo.index - 1] === undefined ||
-			// 	wordAndInfo[0] === wordAndInfo[0].toUpperCase() ||
-			// 	this.PROPERNOUNS.has(wordAndInfo[0]) ||
-			// 	this.PERSONALPROPERNOUNS.has(wordAndInfo[0])
-			// )
+			//////////////////////////////////////////////////
 			if (
 				this.CheckIfWordIsProperNoun(word) ||
 				this.CheckIfWordIsTheBeginningOfASentence(
@@ -159,8 +141,9 @@ export default class Misscap extends Plugin {
 				`<span class="misscap">${match[0]}</span>` +
 				newContent.substring(match.index + match[0].length);
 		}
-
+		this.isProgrammaticChange = true;
 		editor.getDoc().setValue(newContent);
+		this.isProgrammaticChange = false;
 	}
 
 	private async readFromNounFile(file: string): Promise<Set<string>> {
@@ -209,8 +192,7 @@ export default class Misscap extends Plugin {
 		wordAndInfo: RegExpExecArray,
 		fileContent: string
 	) {
-		console.log("hello");
-		if (wordAndInfo[0].split("").length > 1) {
+		if (wordAndInfo[0].split(" ").length > 1) {
 			return false;
 		}
 		if (
@@ -223,5 +205,9 @@ export default class Misscap extends Plugin {
 		) {
 			return true;
 		}
+	}
+
+	private removeAllSpans(content: string): string {
+		return content.replace(/<span class="misscap">(.*?)<\/span>/g, "$1");
 	}
 }
