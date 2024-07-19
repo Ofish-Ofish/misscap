@@ -82,12 +82,16 @@ export default class Misscap extends Plugin {
 		}
 	}
 
-	private async findCapWords(fileContent?: string, editor: any) {
+	private async findCapWords(fileContent?: string, editor?: any) {
 		if (!fileContent) return;
 
 		let matches: Array<any> = [];
 		let capitalizedWords = fileContent
-			? [...fileContent.matchAll(/\b[A-Z][a-z]*\b/g)]
+			? [
+					...fileContent.matchAll(
+						/\b[A-Z][a-z]*(?:'[a-z]+)*(?:-[A-Z][a-z]*(?:'[a-z]+)*)*(?:\s[A-Z][a-z]*(?:'[a-z]+)*(?:-[A-Z][a-z]*(?:'[a-z]+)*)*)*\b/g
+					),
+			  ]
 			: [];
 		for (const wordAndInfo of capitalizedWords) {
 			const word = wordAndInfo[0];
@@ -105,27 +109,34 @@ export default class Misscap extends Plugin {
 				continue;
 			}
 
+			// if (
+			// 	fileContent[wordAndInfo.index - 1] === "\t" ||
+			// 	fileContent[wordAndInfo.index - 2] === "." ||
+			// 	fileContent[wordAndInfo.index - 3] === "." ||
+			// 	fileContent[wordAndInfo.index - 1] === "\n" ||
+			// 	fileContent[wordAndInfo.index - 2] === "!" ||
+			// 	fileContent[wordAndInfo.index - 3] === "!" ||
+			// 	fileContent[wordAndInfo.index - 2] === "?" ||
+			// 	fileContent[wordAndInfo.index - 3] === "?" ||
+			// 	fileContent[wordAndInfo.index - 1] === '"' ||
+			// 	fileContent[wordAndInfo.index - 1] === "'" ||
+			// 	fileContent[wordAndInfo.index - 1] === "#" ||
+			// 	fileContent[wordAndInfo.index - 1] === ">" ||
+			// 	fileContent[wordAndInfo.index - 1] === "“" ||
+			// 	fileContent[wordAndInfo.index - 1] === "‘" ||
+			// 	fileContent[wordAndInfo.index - 1] === "’" ||
+			// 	fileContent[wordAndInfo.index - 1] === "”" ||
+			// 	fileContent[wordAndInfo.index - 1] === undefined ||
+			// 	wordAndInfo[0] === wordAndInfo[0].toUpperCase() ||
+			// 	this.PROPERNOUNS.has(wordAndInfo[0]) ||
+			// 	this.PERSONALPROPERNOUNS.has(wordAndInfo[0])
+			// )
 			if (
-				fileContent[wordAndInfo.index - 1] === "\t" ||
-				fileContent[wordAndInfo.index - 2] === "." ||
-				fileContent[wordAndInfo.index - 3] === "." ||
-				fileContent[wordAndInfo.index - 1] === "\n" ||
-				fileContent[wordAndInfo.index - 2] === "!" ||
-				fileContent[wordAndInfo.index - 3] === "!" ||
-				fileContent[wordAndInfo.index - 2] === "?" ||
-				fileContent[wordAndInfo.index - 3] === "?" ||
-				fileContent[wordAndInfo.index - 1] === '"' ||
-				fileContent[wordAndInfo.index - 1] === "'" ||
-				fileContent[wordAndInfo.index - 1] === "#" ||
-				fileContent[wordAndInfo.index - 1] === ">" ||
-				fileContent[wordAndInfo.index - 1] === "“" ||
-				fileContent[wordAndInfo.index - 1] === "‘" ||
-				fileContent[wordAndInfo.index - 1] === "’" ||
-				fileContent[wordAndInfo.index - 1] === "”" ||
-				fileContent[wordAndInfo.index - 1] === undefined ||
-				wordAndInfo[0] === wordAndInfo[0].toUpperCase() ||
-				this.PROPERNOUNS.has(wordAndInfo[0]) ||
-				this.PERSONALPROPERNOUNS.has(wordAndInfo[0])
+				this.CheckIfWordIsProperNoun(word) ||
+				this.CheckIfWordIsTheBeginningOfASentence(
+					wordAndInfo,
+					fileContent
+				)
 			) {
 				continue;
 			}
@@ -139,7 +150,7 @@ export default class Misscap extends Plugin {
 
 		// Sort matches by their starting index in descending order
 		matches.sort((a, b) => b.index - a.index);
-		console.log(matches);
+		console.log(matches, "matches");
 		// Replace matches in the original content
 		let newContent = fileContent;
 		for (const match of matches) {
@@ -180,5 +191,37 @@ export default class Misscap extends Plugin {
 		this.PERSONALPROPERNOUNS = await this.readFromNounFile(
 			"personalWordBank.txt"
 		);
+	}
+
+	private CheckIfWordIsProperNoun(word: string) {
+		if (
+			word === word.toUpperCase() ||
+			this.PROPERNOUNS.has(word) ||
+			this.PERSONALPROPERNOUNS.has(word)
+		) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	private CheckIfWordIsTheBeginningOfASentence(
+		wordAndInfo: RegExpExecArray,
+		fileContent: string
+	) {
+		console.log("hello");
+		if (wordAndInfo[0].split("").length > 1) {
+			return false;
+		}
+		if (
+			fileContent[wordAndInfo.index - 1] === "\t" ||
+			["\t", "\n", '"', "'", "“", "‘", "’", "”", undefined].includes(
+				fileContent[wordAndInfo.index - 1]
+			) ||
+			[".", "!", "?"].includes(fileContent[wordAndInfo.index - 2]) ||
+			fileContent[wordAndInfo.index - 3] === "."
+		) {
+			return true;
+		}
 	}
 }
