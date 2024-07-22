@@ -9,6 +9,7 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import { log } from "console";
+import { match } from "assert";
 
 export default class Misscap extends Plugin {
 	statusBarElement: HTMLSpanElement;
@@ -16,6 +17,9 @@ export default class Misscap extends Plugin {
 	PERSONALPROPERNOUNS: Set<string>;
 	debounceTimer: number;
 	isProgrammaticChange: boolean;
+	previousMaches: Array<any> = [];
+	PREVIOUSMACHESLENCAP: number = 20;
+
 	async onload() {
 		this.isProgrammaticChange = false;
 		this.statusBarElement = this.addStatusBarItem().createEl("span");
@@ -23,7 +27,6 @@ export default class Misscap extends Plugin {
 		this.PERSONALPROPERNOUNS = await this.readFromNounFile(
 			"personalWordBank.txt"
 		);
-		this.readActiveFileAndFindCapWords();
 
 		this.addCommand({
 			id: "add-to-Library",
@@ -54,7 +57,6 @@ export default class Misscap extends Plugin {
 		});
 
 		this.app.workspace.on("editor-change", (editor) => {
-			if (this.isProgrammaticChange) return;
 			clearTimeout(this.debounceTimer);
 			this.debounceTimer = window.setTimeout(() => {
 				const content = editor.getDoc().getValue();
@@ -86,15 +88,26 @@ export default class Misscap extends Plugin {
 
 	private async findCapWords(fileContent?: string, editor?: any) {
 		if (!fileContent) return;
-		this.isProgrammaticChange = true;
-		const Cleancontent = this.removeAllSpans(fileContent);
-		editor.getDoc().setValue(Cleancontent);
-		this.isProgrammaticChange = false;
 		let matches: Array<any> = [];
+		this.previousMaches.push(matches);
+
+		if (this.previousMaches.length > this.PREVIOUSMACHESLENCAP) {
+			this.previousMaches.shift();
+		}
+
+		if (
+			matches.length ===
+				this.previousMaches[this.previousMaches.length - 2].length &&
+			matches.length !== 0
+		) {
+			const Cleancontent = this.removeAllSpans(fileContent);
+			editor.getDoc().setValue(Cleancontent);
+		}
+
 		let capitalizedWords = fileContent
 			? [
 					...fileContent.matchAll(
-						/\b[A-Z][a-z]*(?:'[a-z]+)*(?:-[A-Z][a-z]*(?:'[a-z]+)*)*(?:\s[A-Z][a-z]*(?:'[a-z]+)*(?:-[A-Z][a-z]*(?:'[a-z]+)*)*)*\b/g
+						/\b(?:[A-Z][a-z]*(?:'\w+)?(?:-[A-Z][a-z]*(?:'\w+)?)*)+(?:\s[A-Z][a-z]*(?:'\w+)?(?:-[A-Z][a-z]*(?:'\w+)?)*)*\b/g
 					),
 			  ]
 			: [];
@@ -132,7 +145,10 @@ export default class Misscap extends Plugin {
 
 		// Sort matches by their starting index in descending order
 		matches.sort((a, b) => b.index - a.index);
+
 		console.log(matches, "matches");
+		console.log(this.previousMaches, "lastMaches");
+
 		// Replace matches in the original content
 		let newContent = fileContent;
 		for (const match of matches) {
@@ -141,9 +157,7 @@ export default class Misscap extends Plugin {
 				`<span class="misscap">${match[0]}</span>` +
 				newContent.substring(match.index + match[0].length);
 		}
-		this.isProgrammaticChange = true;
 		editor.getDoc().setValue(newContent);
-		this.isProgrammaticChange = false;
 	}
 
 	private async readFromNounFile(file: string): Promise<Set<string>> {
